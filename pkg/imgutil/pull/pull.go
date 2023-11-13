@@ -30,6 +30,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+type RemoteSnapshotterFlags struct {
+	SociIndexDigest string
+}
+
 // Config for content fetch
 type Config struct {
 	// Resolver
@@ -44,6 +48,7 @@ type Config struct {
 	// RemoteOpts related to unpacking can be set only when len(Platforms) is 1.
 	RemoteOpts []containerd.RemoteOpt
 	Platforms  []ocispec.Platform // empty for all-platforms
+	RFlags     *RemoteSnapshotterFlags
 }
 
 // Pull loads all resources into the content store and returns the image
