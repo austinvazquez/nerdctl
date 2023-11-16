@@ -105,7 +105,7 @@ func GetExistingImage(ctx context.Context, client *containerd.Client, snapshotte
 // # When insecure is set, skips verifying certs, and also falls back to HTTP when the registry does not speak HTTPS
 //
 // FIXME: this func has too many args
-func EnsureImage(ctx context.Context, client *containerd.Client, stdout, stderr io.Writer, snapshotter, rawRef string, mode PullMode, insecure bool, hostsDirs []string, ocispecPlatforms []ocispec.Platform, unpack *bool, quiet bool, rFlags *RemoteSnapshotterFlags) (*EnsuredImage, error) {
+func EnsureImage(ctx context.Context, client *containerd.Client, stdout, stderr io.Writer, snapshotter, rawRef string, mode PullMode, insecure bool, hostsDirs []string, ocispecPlatforms []ocispec.Platform, unpack *bool, quiet bool, rFlags RemoteSnapshotterFlags) (*EnsuredImage, error) {
 	switch mode {
 	case "always", "missing", "never":
 		// NOP
@@ -196,16 +196,15 @@ func ResolveDigest(ctx context.Context, rawRef string, insecure bool, hostsDirs 
 }
 
 // PullImage pulls an image using the specified resolver.
-func PullImage(ctx context.Context, client *containerd.Client, stdout, stderr io.Writer, snapshotter string, resolver remotes.Resolver, ref string, ocispecPlatforms []ocispec.Platform, unpack *bool, quiet bool, rFlags *RemoteSnapshotterFlags) (*EnsuredImage, error) {
+func PullImage(ctx context.Context, client *containerd.Client, stdout, stderr io.Writer, snapshotter string, resolver remotes.Resolver, ref string, ocispecPlatforms []ocispec.Platform, unpack *bool, quiet bool, rFlags RemoteSnapshotterFlags) (*EnsuredImage, error) {
 	ctx, done, err := client.WithLease(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer done(ctx)
 
-	pullRFlags := &pull.RemoteSnapshotterFlags{}
-	if rFlags != nil {
-		pullRFlags.SociIndexDigest = rFlags.SociIndexDigest
+	pullRFlags := pull.RemoteSnapshotterFlags{
+		SociIndexDigest: rFlags.SociIndexDigest,
 	}
 
 	var containerdImage containerd.Image

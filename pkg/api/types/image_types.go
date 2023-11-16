@@ -199,7 +199,7 @@ type ImagePullOptions struct {
 	// multiaddr of IPFS API (default uses $IPFS_PATH env variable if defined or local directory ~/.ipfs)
 	IPFSAddress string
 	// Flags to pass into remote snapshotters
-	RFlags *RemoteSnapshotterFlags
+	RFlags RemoteSnapshotterFlags
 }
 
 // ImageTagOptions specifies options for `nerdctl (image) tag`.

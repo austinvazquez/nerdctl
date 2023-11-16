@@ -99,9 +99,6 @@ func processPullCommandFlags(cmd *cobra.Command) (types.ImagePullOptions, error)
 	if err != nil {
 		return types.ImagePullOptions{}, err
 	}
-	rFlags := &types.RemoteSnapshotterFlags{
-		SociIndexDigest: sociIndexDigest,
-	}
 
 	verifyOptions, err := processImageVerifyOptions(cmd)
 	if err != nil {
@@ -115,9 +112,11 @@ func processPullCommandFlags(cmd *cobra.Command) (types.ImagePullOptions, error)
 		Unpack:        unpackStr,
 		Quiet:         quiet,
 		IPFSAddress:   ipfsAddressStr,
-		RFlags:        rFlags,
-		Stdout:        cmd.OutOrStdout(),
-		Stderr:        cmd.OutOrStderr(),
+		RFlags: types.RemoteSnapshotterFlags{
+			SociIndexDigest: sociIndexDigest,
+		},
+		Stdout: cmd.OutOrStdout(),
+		Stderr: cmd.OutOrStderr(),
 	}, nil
 }
 

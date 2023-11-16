@@ -57,9 +57,8 @@ func Pull(ctx context.Context, client *containerd.Client, rawRef string, options
 func EnsureImage(ctx context.Context, client *containerd.Client, rawRef string, ocispecPlatforms []v1.Platform, pull string, unpack *bool, quiet bool, options types.ImagePullOptions) (*imgutil.EnsuredImage, error) {
 	var ensured *imgutil.EnsuredImage
 
-	rFlags := &imgutil.RemoteSnapshotterFlags{}
-	if options.RFlags != nil {
-		rFlags.SociIndexDigest = options.RFlags.SociIndexDigest
+	rFlags := imgutil.RemoteSnapshotterFlags{
+		SociIndexDigest: options.RFlags.SociIndexDigest,
 	}
 
 	if scheme, ref, err := referenceutil.ParseIPFSRefWithScheme(rawRef); err == nil {

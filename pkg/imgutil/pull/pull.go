@@ -48,7 +48,7 @@ type Config struct {
 	// RemoteOpts related to unpacking can be set only when len(Platforms) is 1.
 	RemoteOpts []containerd.RemoteOpt
 	Platforms  []ocispec.Platform // empty for all-platforms
-	RFlags     *RemoteSnapshotterFlags
+	RFlags     RemoteSnapshotterFlags
 }
 
 // Pull loads all resources into the content store and returns the image
