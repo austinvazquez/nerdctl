@@ -28,7 +28,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6.1.0
         with:
-          version: v1.59.1
+          version: v1.60.1
           args: --verbose
       - name: yamllint-lint
         run: make lint-yaml
@@ -215,7 +215,7 @@ jobs:
     timeout-minutes: 40
     strategy:
       matrix:
-        go-version: ["1.21.x", "1.22.x"]
+        go-version: ["1.22.x", "1.23.x"]
     steps:
       - uses: actions/checkout@v4.1.7
         with:
