@@ -74,42 +74,17 @@ func List(ctx context.Context, client *containerd.Client, filters, nameAndRefFil
 	if err != nil {
 		return nil, err
 	}
+
 	if len(filters) > 0 {
-		f, err := imgutil.ParseFilters(filters)
+		parsedFilters, err := imgutil.ParseFilters(filters)
 		if err != nil {
 			return nil, err
 		}
-
-		if f.Dangling != nil {
-			imageList = imgutil.FilterDangling(imageList, *f.Dangling)
-		}
-
-		imageList, err = imgutil.FilterByLabel(ctx, client, imageList, f.Labels)
+		filterFuncs := parsedFilters.ToList(ctx, client)
+		imageList, err = imgutil.ApplyFilters(imageList, filterFuncs...)
 		if err != nil {
-			return nil, err
+			return []images.Image{}, err
 		}
-
-		imageList, err = imgutil.FilterByReference(imageList, f.Reference)
-		if err != nil {
-			return nil, err
-		}
-
-		var beforeImages []images.Image
-		if len(f.Before) > 0 {
-			beforeImages, err = imageStore.List(ctx, f.Before...)
-			if err != nil {
-				return nil, err
-			}
-		}
-		var sinceImages []images.Image
-		if len(f.Since) > 0 {
-			sinceImages, err = imageStore.List(ctx, f.Since...)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		imageList = imgutil.FilterImages(imageList, beforeImages, sinceImages)
 	}
 
 	sort.Slice(imageList, func(i, j int) bool {

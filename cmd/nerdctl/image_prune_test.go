@@ -71,3 +71,34 @@ func TestImagePruneAll(t *testing.T) {
 	base.Cmd("image", "prune", "--force", "--all").AssertOutContains(imageName)
 	base.Cmd("images").AssertOutNotContains(imageName)
 }
+
+func TestImagePruneFilterBefore(t *testing.T) {
+	testutil.RequiresBuild(t)
+	testutil.RegisterBuildCacheCleanup(t)
+
+	base := testutil.NewBase(t)
+
+	imagePrefix := testutil.Identifier(t)
+
+	images := []string{}
+	for _, i := range []int{1, 2, 3} {
+		images = append(images, fmt.Sprintf("%s-%d", imagePrefix, i))
+	}
+
+	for _, imageName := range images {
+		dockerfile := fmt.Sprintf(`FROM %s
+		CMD ["echo", "nerdctl-test-image-prune-filter-before"]`, testutil.CommonImage)
+
+		buildCtx := createBuildContext(t, dockerfile)
+		base.Cmd("build", "-t", imageName, buildCtx).AssertOK()
+
+		base.Cmd("images").AssertOutContains(imageName)
+	}
+
+	beforeFilter := fmt.Sprintf("--filter=before=%s", images[1])
+	base.Cmd("image", "prune", "--force", beforeFilter).AssertOK()
+
+	base.Cmd("images").AssertOutNotContains(images[0])
+	base.Cmd("images").AssertOutNotContains(images[1])
+	base.Cmd("images").AssertOutContains(images[2])
+}

@@ -27,28 +27,17 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/images"
-	"github.com/containerd/log"
-
 	"github.com/containerd/nerdctl/v2/pkg/referenceutil"
 )
 
 // Filter types supported to filter images.
-var (
+const (
 	FilterBeforeType    = "before"
 	FilterSinceType     = "since"
 	FilterLabelType     = "label"
 	FilterReferenceType = "reference"
 	FilterDanglingType  = "dangling"
 )
-
-// Filters contains all types of filters to filter images.
-type Filters struct {
-	Before    []string
-	Since     []string
-	Labels    map[string]string
-	Reference []string
-	Dangling  *bool
-}
 
 // ParseFilters parse filter strings.
 func ParseFilters(filters []string) (*Filters, error) {
@@ -105,103 +94,185 @@ func ParseFilters(filters []string) (*Filters, error) {
 	return f, nil
 }
 
-// FilterImages returns images in `labelImages` that are created
-// before MAX(beforeImages.CreatedAt) and after MIN(sinceImages.CreatedAt).
-func FilterImages(labelImages []images.Image, beforeImages []images.Image, sinceImages []images.Image) []images.Image {
-	var filteredImages []images.Image
-	maxTime := time.Now()
-	minTime := time.Date(1970, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	if len(beforeImages) > 0 {
-		maxTime = beforeImages[0].CreatedAt
-		for _, value := range beforeImages {
-			if value.CreatedAt.After(maxTime) {
-				maxTime = value.CreatedAt
-			}
-		}
-	}
-	if len(sinceImages) > 0 {
-		minTime = sinceImages[0].CreatedAt
-		for _, value := range sinceImages {
-			if value.CreatedAt.Before(minTime) {
-				minTime = value.CreatedAt
-			}
-		}
-	}
-	for _, image := range labelImages {
-		if image.CreatedAt.After(minTime) && image.CreatedAt.Before(maxTime) {
-			filteredImages = append(filteredImages, image)
-		}
-	}
-	return filteredImages
+// Filters contains all types of filters to filter images.
+type Filters struct {
+	Before    []string
+	Since     []string
+	Labels    map[string]string
+	Reference []string
+	Dangling  *bool
 }
 
-// FilterByReference filters images using references given in `filters`.
-func FilterByReference(imageList []images.Image, filters []string) ([]images.Image, error) {
-	var filteredImageList []images.Image
-	log.L.Debug(filters)
-	for _, image := range imageList {
-		log.L.Debug(image.Name)
-		var matches int
-		for _, f := range filters {
-			var ref distributionref.Reference
-			var err error
-			ref, err = distributionref.ParseAnyReference(image.Name)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse image name: %s while filtering by reference because of %s", image.Name, err.Error())
-			}
+type FilterFunc func([]images.Image) ([]images.Image, error)
 
-			familiarMatch, err := distributionref.FamiliarMatch(f, ref)
-			if err != nil {
-				return nil, err
-			}
-			regexpMatch, err := regexp.MatchString(f, image.Name)
-			if err != nil {
-				return nil, err
-			}
-			if familiarMatch || regexpMatch {
-				matches++
-			}
-		}
-		if matches == len(filters) {
-			filteredImageList = append(filteredImageList, image)
-		}
+func (f Filters) ToList(ctx context.Context, client *containerd.Client) []FilterFunc {
+	filterFuncs := []FilterFunc{
+		FilterByCreatedAt(ctx, client, f.Before, f.Since),
+		FilterByLabel(ctx, client, f.Labels),
+		FilterByReference(f.Reference),
 	}
-	return filteredImageList, nil
+	if f.Dangling != nil {
+		filterFuncs = append(filterFuncs, FilterByDangling(*f.Dangling))
+	}
+	return filterFuncs
 }
 
-// FilterDangling filters dangling images (or keeps if `dangling` == false).
-func FilterDangling(imageList []images.Image, dangling bool) []images.Image {
-	var filtered []images.Image
-	for _, image := range imageList {
-		_, tag := ParseRepoTag(image.Name)
-
-		if dangling && tag == "" {
-			filtered = append(filtered, image)
-		}
-		if !dangling && tag != "" {
-			filtered = append(filtered, image)
+// ApplyFilters applies each filter function in the order provided
+// and returns the resulting filtered image list.
+func ApplyFilters(imageList []images.Image, filters ...FilterFunc) ([]images.Image, error) {
+	var (
+		filteredImages = imageList
+		err            error
+	)
+	for _, filter := range filters {
+		filteredImages, err = filter(filteredImages)
+		if err != nil {
+			return []images.Image{}, err
 		}
 	}
-	return filtered
+	return filteredImages, nil
 }
 
-// FilterByLabel filters images based on labels given in `filters`.
-func FilterByLabel(ctx context.Context, client *containerd.Client, imageList []images.Image, filters map[string]string) ([]images.Image, error) {
-	for lk, lv := range filters {
-		var imageLabels []images.Image
-		for _, img := range imageList {
-			ci := containerd.NewImage(client, img)
-			cfg, _, err := ReadImageConfig(ctx, ci)
+// FilterByCreatedAt filters an image list to images created before MAX(before.<Image>.CreatedAt)
+// and after MIN(since.<Image>.CreatedAt).
+func FilterByCreatedAt(ctx context.Context, client *containerd.Client, before []string, since []string) FilterFunc {
+	return func(imageList []images.Image) ([]images.Image, error) {
+		var (
+			minTime = time.Date(1970, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+			maxTime = time.Now()
+		)
+
+		imageStore := client.ImageService()
+		if len(before) > 0 {
+			beforeImages, err := imageStore.List(ctx, before...)
 			if err != nil {
-				return nil, err
+				return []images.Image{}, err
 			}
-			if val, ok := cfg.Config.Labels[lk]; ok {
-				if val == lv || lv == "" {
-					imageLabels = append(imageLabels, img)
+			maxTime = beforeImages[0].CreatedAt
+			for _, image := range beforeImages {
+				if image.CreatedAt.After(maxTime) {
+					maxTime = image.CreatedAt
 				}
 			}
 		}
-		imageList = imageLabels
+
+		if len(since) > 0 {
+			sinceImages, err := imageStore.List(ctx, since...)
+			if err != nil {
+				return []images.Image{}, err
+			}
+			minTime = sinceImages[0].CreatedAt
+			for _, image := range sinceImages {
+				if image.CreatedAt.Before(minTime) {
+					minTime = image.CreatedAt
+				}
+			}
+		}
+
+		return filter(imageList, func(i images.Image) (bool, error) {
+			return imageCreatedBetween(i, minTime, maxTime), nil
+		})
 	}
-	return imageList, nil
+}
+
+// FilterByLabel filters an image list based on labels applied to the image's config specification for the platform.
+// Any matching label will include the image in the list.
+func FilterByLabel(ctx context.Context, client *containerd.Client, labels map[string]string) FilterFunc {
+	return func(imageList []images.Image) ([]images.Image, error) {
+		return filter(imageList, func(i images.Image) (bool, error) {
+			clientImage := containerd.NewImage(client, i)
+			iCfg, _, err := ReadImageConfig(ctx, clientImage)
+			if err != nil {
+				return false, err
+			}
+			return matchesAnyLabel(iCfg.Config.Labels, labels)
+		})
+	}
+}
+
+// FilterByReference filters an image list based on <image:tag>
+// matching the provided reference patterns
+func FilterByReference(referencePatterns []string) FilterFunc {
+	return func(imageList []images.Image) ([]images.Image, error) {
+		return filter(imageList, func(i images.Image) (bool, error) {
+			return matchesReferences(i, referencePatterns)
+		})
+	}
+}
+
+// FilterByDangling filters an image list based on tag value.
+//
+// If dangling is true, then only untagged images will be returned in the list.
+// If dangling is false, then only tagged images will be returned in the list.
+func FilterByDangling(dangling bool) FilterFunc {
+	return func(imageList []images.Image) ([]images.Image, error) {
+		if dangling {
+			return filter(imageList, func(i images.Image) (bool, error) {
+				return isDangling(i), nil
+			})
+		}
+		return filter(imageList, func(i images.Image) (bool, error) {
+			return !isDangling(i), nil
+		})
+	}
+}
+
+func filter[T any](items []T, f func(item T) (bool, error)) ([]T, error) {
+	filteredItems := []T{}
+	for _, item := range items {
+		ok, err := f(item)
+		if err != nil {
+			return []T{}, err
+		} else if ok {
+			filteredItems = append(filteredItems, item)
+		}
+	}
+	return filteredItems, nil
+}
+
+func imageCreatedBetween(image images.Image, min time.Time, max time.Time) bool {
+	return image.CreatedAt.After(min) && image.CreatedAt.Before(max)
+}
+
+func matchesAnyLabel(imageCfgLabels map[string]string, labels map[string]string) (bool, error) {
+	for lk, lv := range labels {
+		if val, ok := imageCfgLabels[lk]; ok {
+			if val == lv || lv == "" {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+func matchesReferences(image images.Image, referencePatterns []string) (bool, error) {
+	var matches int
+
+	reference, err := distributionref.ParseAnyReference(image.Name)
+	if err != nil {
+		return false, err
+	}
+
+	for _, pattern := range referencePatterns {
+		familiarMatch, err := distributionref.FamiliarMatch(pattern, reference)
+		if err != nil {
+			return false, err
+		}
+
+		regexpMatch, err := regexp.MatchString(pattern, image.Name)
+		if err != nil {
+			return false, err
+		}
+
+		if familiarMatch || regexpMatch {
+			matches++
+		}
+	}
+
+	return matches == len(referencePatterns), nil
+}
+
+func isDangling(image images.Image) bool {
+	_, tag := ParseRepoTag(image.Name)
+	return tag == ""
 }

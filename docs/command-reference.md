@@ -737,7 +737,7 @@ Usage: `nerdctl images [OPTIONS] [REPOSITORY[:TAG]]`
 
 Flags:
 
-- :whale: `-a, --all`: Show all images (unimplemented)
+- :whale: `-a, --all`: Show al images (unimplemented)
 - :whale: `-q, --quiet`: Only show numeric IDs
 - :whale: `--no-trunc`: Don't truncate output
 - :whale: `--format`: Format the output using the given Go template
@@ -746,7 +746,7 @@ Flags:
   - :nerd_face: `--format=wide`: Wide table
   - :nerd_face: `--format=json`: Alias of `--format='{{json .}}'`
 - :whale: `--digests`: Show digests (compatible with Docker, unlike ID)
-- :whale: `-f, --filter`: Filter the images. For now, only 'before=<image:tag>' and 'since=<image:tag>' is supported.
+- :whale: `-f, --filter`: Filter the images.
   - :whale: `--filter=before=<image:tag>`: Images created before given image (exclusive)
   - :whale: `--filter=since=<image:tag>`: Images created after given image (exclusive)
   - :whale: `--filter=label<key>=<value>`: Matches images based on the presence of a label alone or a label and a value
@@ -886,9 +886,15 @@ Usage: `nerdctl image prune [OPTIONS]`
 Flags:
 
 - :whale: `-a, --all`: Remove all unused images, not just dangling ones
+- :whale: `-f, --filter`: Filter the images to be pruned.
+  - :whale: `--filter=before=<image:tag>`: Images created before given image (exclusive)
+  - :whale: `--filter=since=<image:tag>`: Images created after given image (exclusive)
+  - :whale: `--filter=label<key>=<value>`: Matches images based on the presence of a label alone or a label and a value
+  - :whale: `--filter=dangling=true`: Filter images by dangling
+  - :nerd_face: `--filter=reference=<image:tag>`: Filter images by reference (Matches both docker compatible wildcard pattern and regexp match)
 - :whale: `-f, --force`: Do not prompt for confirmation
 
-Unimplemented `docker image prune` flags: `--filter`
+Unimplemented `docker image prune` flags: `--filter=until=<timestamp>`
 
 ### :nerd_face: nerdctl image convert
 
