@@ -71,3 +71,7 @@ func TestImagePruneAll(t *testing.T) {
 	base.Cmd("image", "prune", "--force", "--all").AssertOutContains(imageName)
 	base.Cmd("images").AssertOutNotContains(imageName)
 }
+
+func TestImagePruneFilter(t *testing.T) {
+
+}
