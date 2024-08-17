@@ -187,3 +187,34 @@ func TestIsBuildPlatformDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestParseBuildctlArgsForOCILayout(t *testing.T) {
+	tests := []struct {
+		name          string
+		ociLayoutName string
+		ociLayoutPath string
+		expectedArgs  []string
+		expectedErr   error
+	}{
+		{
+			name:          "PrefixNotFoundError",
+			ociLayoutName: "test",
+			ociLayoutPath: "/tmp/oci-layout/",
+			expectedArgs:  []string{},
+			expectedErr:   errOCILayoutPrefixNotFound,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			args, err := parseBuildContextFromOCILayout(test.ociLayoutName, test.ociLayoutPath)
+			if test.expectedErr == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorIs(t, err, test.expectedErr)
+			}
+			assert.Equal(t, len(args), len(test.expectedArgs))
+			assert.DeepEqual(t, args, test.expectedArgs)
+		})
+	}
+}
