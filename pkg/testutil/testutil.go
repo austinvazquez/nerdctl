@@ -574,8 +574,12 @@ func GetDaemonIsKillable() bool {
 	return flagTestKillDaemon
 }
 
+func IsDocker() bool {
+	return GetTarget() == Docker
+}
+
 func DockerIncompatible(t testing.TB) {
-	if GetTarget() == Docker {
+	if IsDocker() {
 		t.Skip("test is incompatible with Docker")
 	}
 }
@@ -787,4 +791,15 @@ func KubectlHelper(base *Base, args ...string) *Cmd {
 		Cmd:  icmdCmd,
 		Base: base,
 	}
+}
+
+func SetupDockerContainerBuilder(t *testing.T) string {
+	name := fmt.Sprintf("%s-container", Identifier(t))
+	base := NewBase(t)
+	base.Cmd("buildx", "create", "--name", name, "--driver=docker-container").AssertOK()
+	t.Cleanup(func() {
+		base.Cmd("buildx", "stop", name).AssertOK()
+		base.Cmd("buildx", "rm", "--force", name).AssertOK()
+	})
+	return name
 }
