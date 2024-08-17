@@ -102,10 +102,9 @@ func TestImagePruneFilterUntil(t *testing.T) {
 	testutil.RequiresBuild(t)
 	testutil.RegisterBuildCacheCleanup(t)
 
-	// Docker image's created timestamp is set based on base image creation time.
-	testutil.DockerIncompatible(t)
-
 	base := testutil.NewBase(t)
+	// For deterministically testing the filter, set the image's created timestamp to 2 hours in the past.
+	base.Env = append(base.Env, fmt.Sprintf("SOURCE_DATE_EPOCH=%d", time.Now().Add(-2*time.Hour).Unix()))
 	imageName := testutil.Identifier(t)
 	t.Cleanup(func() {
 		// Image should have been pruned; so fail if rmi does not error.
@@ -123,9 +122,6 @@ CMD ["echo", "nerdctl-test-image-prune-filter-until"]`, testutil.CommonImage)
 	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=12h").AssertOK()
 	base.Cmd("images", "--all").AssertOutContains(imageName)
 
-	// Pause to ensure enough time has passed for the image to be cleaned on next prune.
-	time.Sleep(3 * time.Second)
-
-	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=10ms").AssertOK()
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=1h").AssertOK()
 	base.Cmd("images", "--all").AssertOutNotContains(imageName)
 }
