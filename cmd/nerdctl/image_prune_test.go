@@ -102,10 +102,8 @@ func TestImagePruneFilterUntil(t *testing.T) {
 	testutil.RequiresBuild(t)
 	testutil.RegisterBuildCacheCleanup(t)
 
-	// Docker image's created timestamp is set based on base image creation time.
-	testutil.DockerIncompatible(t)
-
 	base := testutil.NewBase(t)
+	base.Env = append(base.Env, fmt.Sprintf("SOURCE_DATE_EPOCH=%d", time.Now().Unix()))
 	imageName := testutil.Identifier(t)
 	t.Cleanup(func() { base.Cmd("rmi", "--force", imageName) })
 
