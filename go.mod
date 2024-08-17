@@ -34,6 +34,7 @@ require (
 	github.com/coreos/go-iptables v0.7.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cyphar/filepath-securejoin v0.3.1
+	github.com/distribution/distribution v2.8.3+incompatible
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v27.1.2+incompatible
 	github.com/docker/docker v27.1.2+incompatible
@@ -86,6 +87,7 @@ require (
 	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/containers/ocicrypt v1.2.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
+	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
