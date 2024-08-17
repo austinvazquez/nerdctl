@@ -108,11 +108,96 @@ func TestApplyFilters(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ReturnErrorAndEmptyListOnFilterError",
+			images: []images.Image{
+				{
+					Name: "<none>:<none>",
+				},
+				{
+					Name: "docker.io/library/hello-world:latest",
+				},
+			},
+			filters: []Filter{
+				FilterDanglingImages(),
+				FilterUntil(""),
+			},
+			expectedImages: []images.Image{},
+			expectedErr:    errNoUntilTimestamp,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actualImages, err := ApplyFilters(test.images, test.filters...)
+			if test.expectedErr == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorIs(t, err, test.expectedErr)
+			}
+			assert.Equal(t, len(actualImages), len(test.expectedImages))
+			assert.DeepEqual(t, actualImages, test.expectedImages)
+		})
+	}
+}
+
+func TestFilterUntil(t *testing.T) {
+	now := time.Now().UTC()
+
+	tests := []struct {
+		name           string
+		until          string
+		images         []images.Image
+		expectedImages []images.Image
+		expectedErr    error
+	}{
+		{
+			name:           "EmptyTimestampReturnsError",
+			until:          "",
+			images:         []images.Image{},
+			expectedImages: []images.Image{},
+			expectedErr:    errNoUntilTimestamp,
+		},
+		{
+			name:           "UnparseableTimestampReturnsError",
+			until:          "-2006-01-02T15:04:05Z07:00",
+			images:         []images.Image{},
+			expectedImages: []images.Image{},
+			expectedErr:    errUnparsableUntilTimestamp,
+		},
+		{
+			name:  "ImagesOlderThan3Hours(Go duration)",
+			until: "3h",
+			images: []images.Image{
+				{
+					Name:      "image:yesterday",
+					CreatedAt: now.Add(-24 * time.Hour),
+				},
+				{
+					Name:      "image:today",
+					CreatedAt: now.Add(-12 * time.Hour),
+				},
+				{
+					Name:      "image:latest",
+					CreatedAt: now,
+				},
+			},
+			expectedImages: []images.Image{
+				{
+					Name:      "image:yesterday",
+					CreatedAt: now.Add(-24 * time.Hour),
+				},
+				{
+					Name:      "image:today",
+					CreatedAt: now.Add(-12 * time.Hour),
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actualImages, err := FilterUntil(test.until)(test.images)
 			if test.expectedErr == nil {
 				assert.NilError(t, err)
 			} else {

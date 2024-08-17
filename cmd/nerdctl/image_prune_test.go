@@ -71,3 +71,53 @@ func TestImagePruneAll(t *testing.T) {
 	base.Cmd("image", "prune", "--force", "--all").AssertOutContains(imageName)
 	base.Cmd("images").AssertOutNotContains(imageName)
 }
+
+func TestImagePruneFilterLabel(t *testing.T) {
+	testutil.RequiresBuild(t)
+	testutil.RegisterBuildCacheCleanup(t)
+
+	base := testutil.NewBase(t)
+	imageName := testutil.Identifier(t)
+	t.Cleanup(func() { base.Cmd("rmi", "--force", imageName) })
+
+	dockerfile := fmt.Sprintf(`FROM %s
+CMD ["echo", "nerdctl-test-image-prune-filter-label"]
+LABEL foo=bar
+LABEL version=0.1`, testutil.CommonImage)
+
+	buildCtx := createBuildContext(t, dockerfile)
+
+	base.Cmd("build", "-t", imageName, buildCtx).AssertOK()
+	base.Cmd("images", "--all").AssertOutContains(imageName)
+
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "label=foo=baz").AssertOK()
+	base.Cmd("images", "--all").AssertOutContains(imageName)
+
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "label=foo=bar").AssertOK()
+	base.Cmd("images", "--all").AssertOutNotContains(imageName)
+}
+
+func TestImagePruneFilterUntil(t *testing.T) {
+	testutil.RequiresBuild(t)
+	testutil.RegisterBuildCacheCleanup(t)
+
+	base := testutil.NewBase(t)
+	imageName := testutil.Identifier(t)
+	t.Cleanup(func() { base.Cmd("rmi", "--force", imageName) })
+
+	dockerfile := fmt.Sprintf(`FROM %s
+CMD ["echo", "nerdctl-test-image-prune-filter-label"]
+LABEL foo=bar
+LABEL version=0.1`, testutil.CommonImage)
+
+	buildCtx := createBuildContext(t, dockerfile)
+
+	base.Cmd("build", "-t", imageName, buildCtx).AssertOK()
+	base.Cmd("images").AssertOutContains(imageName)
+
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=12h").AssertOK()
+	base.Cmd("images", "--all").AssertOutContains(imageName)
+
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=100ms").AssertOK()
+	base.Cmd("images", "--all").AssertOutNotContains(imageName)
+}
