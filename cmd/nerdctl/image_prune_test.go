@@ -113,7 +113,7 @@ LABEL version=0.1`, testutil.CommonImage)
 	buildCtx := createBuildContext(t, dockerfile)
 
 	base.Cmd("build", "-t", imageName, buildCtx).AssertOK()
-	base.Cmd("images").AssertOutContains(imageName)
+	base.Cmd("images", "--all").AssertOutContains(imageName)
 
 	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=12h").AssertOK()
 	base.Cmd("images", "--all").AssertOutContains(imageName)
