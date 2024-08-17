@@ -123,6 +123,6 @@ CMD ["echo", "nerdctl-test-image-prune-filter-until"]`, testutil.CommonImage)
 	// Pause to ensure enough time has passed for the image to be cleaned on next prune.
 	time.Sleep(3 * time.Second)
 
-	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=10ms").AssertOK()
+	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=100ms").AssertOK()
 	base.Cmd("images", "--all").AssertOutNotContains(imageName)
 }
