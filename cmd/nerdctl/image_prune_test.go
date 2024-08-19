@@ -107,8 +107,14 @@ func TestImagePruneFilterUntil(t *testing.T) {
 	base.Env = append(base.Env, fmt.Sprintf("SOURCE_DATE_EPOCH=%d", time.Now().Add(-2*time.Hour).Unix()))
 	imageName := testutil.Identifier(t)
 	t.Cleanup(func() {
-		// Image should have been pruned; so fail if rmi does not error.
-		base.Cmd("rmi", "--force", imageName).AssertFail()
+		// Image should have been pruned.
+		cleanupImage := base.Cmd("rmi", "--force", imageName)
+		if testutil.GetTarget() == testutil.Docker {
+			// Docker rmi on non-existent image exits 0
+			cleanupImage.AssertOK()
+		} else {
+			cleanupImage.AssertFail()
+		}
 	})
 
 	dockerfile := fmt.Sprintf(`FROM %s
