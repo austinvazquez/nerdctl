@@ -53,7 +53,10 @@ CMD ["echo", "test-nerdctl-build-context-oci-layout-parent"]`, testutil.CommonIm
 	}
 
 	buildArgs = append(buildArgs, "build", buildCtx, fmt.Sprintf("--output=type=oci,dest=%s", tarPath))
-	base.Cmd(buildArgs...).Run()
+	cmd := base.Cmd(buildArgs...)
+	t.Logf("1 command: %s", cmd.Cmd.Command)
+	cmd.Run()
+	t.Logf("1 output: %s", cmd.Out())
 
 	ociLayoutDir := t.TempDir()
 	err := extractTarFile(ociLayoutDir, tarPath)
@@ -75,6 +78,9 @@ CMD ["echo", "test-nerdctl-build-context-oci-layout"]`, ociLayout)
 		buildArgs = append(buildArgs, "--load")
 	}
 
-	base.Cmd(buildArgs...).Run()
+	cmd = base.Cmd(buildArgs...)
+	t.Logf("2 command: %s", cmd.Cmd.Command)
+	cmd.AssertOK()
+	t.Logf("2: %s", cmd.Out())
 	base.Cmd("run", "--rm", imageName).AssertOutContains("test-nerdctl-build-context-oci-layout")
 }
