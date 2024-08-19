@@ -45,24 +45,24 @@ LABEL layer=oci-layout-parent
 CMD ["echo", "test-nerdctl-build-context-oci-layout-parent"]`, testutil.CommonImage)
 	buildCtx := createBuildContext(t, dockerfile)
 
-	tarPath := fmt.Sprintf("%s/%s", buildCtx, "test.tar")
+	ociLayout := "parent"
+	parentTarPath := fmt.Sprintf("%s/%s.tar", buildCtx, ociLayout)
 
 	var buildArgs []string
 	if testutil.IsDocker() {
 		buildArgs = dockerBuilderArgs
 	}
 
-	buildArgs = append(buildArgs, "build", buildCtx, fmt.Sprintf("--output=type=oci,dest=%s", tarPath))
+	buildArgs = append(buildArgs, "build", buildCtx, fmt.Sprintf("--output=type=oci,dest=%s", parentTarPath))
 	cmd := base.Cmd(buildArgs...)
 	t.Logf("1 command: %s", cmd.Cmd.Command)
 	cmd.Run()
 	t.Logf("1 output: %s", cmd.Out())
 
 	ociLayoutDir := t.TempDir()
-	err := extractTarFile(ociLayoutDir, tarPath)
+	err := extractTarFile(ociLayoutDir, parentTarPath)
 	assert.NilError(t, err)
 
-	ociLayout := "parent"
 	dockerfile = fmt.Sprintf(`FROM %s
 CMD ["echo", "test-nerdctl-build-context-oci-layout"]`, ociLayout)
 	buildCtx = createBuildContext(t, dockerfile)
@@ -81,6 +81,6 @@ CMD ["echo", "test-nerdctl-build-context-oci-layout"]`, ociLayout)
 	cmd = base.Cmd(buildArgs...)
 	t.Logf("2 command: %s", cmd.Cmd.Command)
 	cmd.AssertOK()
-	t.Logf("2: %s", cmd.Out())
+	t.Logf("2 output: %s", cmd.Out())
 	base.Cmd("run", "--rm", imageName).AssertOutContains("test-nerdctl-build-context-oci-layout")
 }
