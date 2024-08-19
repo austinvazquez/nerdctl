@@ -107,7 +107,10 @@ func TestImagePruneFilterUntil(t *testing.T) {
 
 	base := testutil.NewBase(t)
 	imageName := testutil.Identifier(t)
-	t.Cleanup(func() { base.Cmd("rmi", "--force", imageName) })
+	t.Cleanup(func() {
+		// Image should have been pruned; so fail if rmi does not error.
+		base.Cmd("rmi", "--force", imageName).AssertFail()
+	})
 
 	dockerfile := fmt.Sprintf(`FROM %s
 CMD ["echo", "nerdctl-test-image-prune-filter-until"]`, testutil.CommonImage)
