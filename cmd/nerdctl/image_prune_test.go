@@ -112,6 +112,7 @@ func TestImagePruneFilterUntil(t *testing.T) {
 	})
 
 	dockerfile := fmt.Sprintf(`FROM %s
+ARG SOURCE_DATE_EPOCH
 CMD ["echo", "nerdctl-test-image-prune-filter-until"]`, testutil.CommonImage)
 
 	buildCtx := createBuildContext(t, dockerfile)
