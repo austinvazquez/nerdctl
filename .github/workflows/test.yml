@@ -63,9 +63,9 @@ jobs:
         # ubuntu-20.04: cgroup v1, ubuntu-22.04 and later: cgroup v2
         include:
           - ubuntu: 20.04
-            containerd: v1.6.33
-          - ubuntu: 22.04
             containerd: v1.7.19
+          - ubuntu: 22.04
+            containerd: v1.6.33
           - ubuntu: 24.04
             containerd: v2.0.0-rc.3
     env:
