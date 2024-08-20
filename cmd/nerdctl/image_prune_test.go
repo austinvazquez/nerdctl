@@ -104,7 +104,8 @@ func TestImagePruneFilterUntil(t *testing.T) {
 
 	base := testutil.NewBase(t)
 	// For deterministically testing the filter, set the image's created timestamp to 2 hours in the past.
-	base.Env = append(base.Env, fmt.Sprintf("SOURCE_DATE_EPOCH=%d", time.Now().Add(-2*time.Hour).Unix()))
+	twoHoursAgo := time.Now().Add(-2 * time.Hour).Unix()
+	base.Env = append(base.Env, fmt.Sprintf("SOURCE_DATE_EPOCH=%d", twoHoursAgo))
 
 	imageName := testutil.Identifier(t)
 	t.Cleanup(func() {
@@ -118,7 +119,7 @@ CMD ["echo", "nerdctl-test-image-prune-filter-until"]`, testutil.CommonImage)
 
 	buildCtx := createBuildContext(t, dockerfile)
 
-	base.Cmd("build", "-t", imageName, buildCtx).AssertOK()
+	base.Cmd("build", "-t", imageName, "--build-arg", fmt.Sprintf("SOURCE_DATE_EPOCH=%d", twoHoursAgo), buildCtx).AssertOK()
 	base.Cmd("images", "--all").AssertOutContains(imageName)
 
 	base.Cmd("image", "prune", "--force", "--all", "--filter", "until=12h").AssertOK()
