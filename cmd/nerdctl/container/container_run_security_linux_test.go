@@ -193,6 +193,41 @@ func TestRunSeccompCapSysPtrace(t *testing.T) {
 	// Docker/Moby 's seccomp profile allows ptrace(2) by default, but containerd does not (yet): https://github.com/containerd/containerd/issues/6802
 }
 
+func TestRunSystemPathsUnconfined(t *testing.T) {
+	base := testutil.NewBase(t)
+
+	const findmnt = "`apk add -q findmnt && findmnt -R /proc && findmnt -R /sys`"
+	result := base.Cmd("run", "--rm", testutil.AlpineImage, "sh", "-euxc", findmnt).Run()
+	defaultContainerOutput := result.Combined()
+
+	result = base.Cmd("run", "--rm", "--security-opt", "systempaths=unconfined", testutil.AlpineImage, "sh", "-euxc", findmnt).Run()
+	unconfinedContainerOutput := result.Combined()
+
+	for _, path := range []string{
+		"/proc/kcore",
+		"/proc/keys",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/sys/firmware",
+	} {
+		assert.Check(t, strings.Contains(defaultContainerOutput, path), fmt.Sprintf("%s should be masked by default", path))
+		assert.Assert(t, !strings.Contains(unconfinedContainerOutput, path), fmt.Sprintf("%s should not be masked", path))
+	}
+
+	for _, path := range []string{
+		"/proc/acpi",
+		"/proc/bus",
+		"/proc/fs",
+		"/proc/irq",
+		"/proc/sysrq-trigger",
+	} {
+		chmod := fmt.Sprintf("`chmod 755 %s`", path)
+		result := base.Cmd("run", "--rm", testutil.AlpineImage, "sh", "-euxc", chmod).Run()
+		assert.Check(t, strings.Contains(result.Combined(), "Read-only file system"), fmt.Sprintf("%s should be read-only by default", path))
+		base.Cmd("run", "--rm", "--security-opt", "systempaths=unconfined", testutil.AlpineImage, "sh", "-euxc", chmod).AssertOK()
+	}
+}
+
 func TestRunPrivileged(t *testing.T) {
 	// docker does not support --privileged-without-host-devices
 	testutil.DockerIncompatible(t)
