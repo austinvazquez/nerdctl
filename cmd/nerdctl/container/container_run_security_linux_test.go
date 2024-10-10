@@ -193,6 +193,46 @@ func TestRunSeccompCapSysPtrace(t *testing.T) {
 	// Docker/Moby 's seccomp profile allows ptrace(2) by default, but containerd does not (yet): https://github.com/containerd/containerd/issues/6802
 }
 
+func TestRunSystemPathsUnconfined(t *testing.T) {
+	base := testutil.NewBase(t)
+
+	for _, dir := range []string{
+		"/proc/acpi",
+		"/proc/asound",
+		"/proc/kcore",
+		"/proc/keys",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/proc/timer_stats",
+		"/proc/sched_debug",
+		"/sys/firmware",
+		"/sys/devices/virtual/powercap",
+		"/proc/scsi",
+	} {
+		// Masked directories will appear as a mountpoint.
+		isMount := fmt.Sprintf("sh -euxc \"mountpoint %s || exit 0\"", dir)
+		// Include "Not a directory" as test container may not support all default masked directories.
+		base.Cmd("run", "--rm", testutil.AlpineImage, isMount).AssertOutContainsAny("is a mountpoint", "Not a directory")
+
+		// Unmasked directories should not appear as a mountpoint.
+		base.Cmd("run", "--rm", "--security-opt", "systempaths=unconfined", testutil.AlpineImage, isMount).AssertOutNotContains("is a mountpoint")
+	}
+
+	for _, dir := range []string{
+		"/proc/bus",
+		"/proc/fs",
+		"/proc/irq",
+		"/proc/sys",
+		"/proc/sysrq-trigger",
+	} {
+		// Read-only directories cannot have their permissions changed.
+		isReadOnly := fmt.Sprintf("sh -euxc \"chmod 755 %s || exit 0\"", dir)
+		// Include "Not a directory" as test container may not support all default read-only directories.
+		base.Cmd("run", "--rm", testutil.AlpineImage, isReadOnly).AssertOutContainsAny("Read-only file system", "Not a directory")
+		base.Cmd("run", "--rm", "--security-opt", "systempaths=unconfined", testutil.AlpineImage, isReadOnly).AssertOutNotContains("Read-only file system")
+	}
+}
+
 func TestRunPrivileged(t *testing.T) {
 	// docker does not support --privileged-without-host-devices
 	testutil.DockerIncompatible(t)
