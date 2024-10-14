@@ -36,6 +36,7 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/containerutil"
 	"github.com/containerd/nerdctl/v2/pkg/defaults"
 	"github.com/containerd/nerdctl/v2/pkg/errutil"
+	"github.com/containerd/nerdctl/v2/pkg/imgutil/load"
 	"github.com/containerd/nerdctl/v2/pkg/labels"
 	"github.com/containerd/nerdctl/v2/pkg/logging"
 	"github.com/containerd/nerdctl/v2/pkg/netutil"
@@ -360,6 +361,33 @@ func runAction(cmd *cobra.Command, args []string) error {
 	netManager, err := containerutil.NewNetworkingOptionsManager(createOpt.GOptions, netFlags, client)
 	if err != nil {
 		return err
+	}
+
+	if imageRef := args[0]; strings.HasPrefix(imageRef, "oci-archive://") {
+		// Load and run the platform specified by the user.
+		// If none specified, fallback to the default platform.
+		platform := []string{}
+		if createOpt.Platform != "" {
+			platform = append(platform, createOpt.Platform)
+		}
+
+		images, err := load.FromOCIArchive(ctx, client, imageRef, types.ImageLoadOptions{
+			Stdout:       cmd.OutOrStdout(),
+			GOptions:     createOpt.GOptions,
+			Platform:     platform,
+			AllPlatforms: false,
+			Quiet:        createOpt.ImagePullOpt.Quiet,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Running multi-image OCI archives is not yet supported.
+		if len(images) != 1 {
+			return errors.New("multiple images in OCI archive found")
+		}
+
+		args[0] = images[0].Name
 	}
 
 	c, gc, err := container.Create(ctx, client, args, netManager, createOpt)

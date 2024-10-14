@@ -631,3 +631,27 @@ func TestRunAttachFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestRunFromOCIArchive(t *testing.T) {
+	testutil.RequiresBuild(t)
+	testutil.RegisterBuildCacheCleanup(t)
+	testutil.DockerIncompatible(t)
+
+	base := testutil.NewBase(t)
+	imageName := testutil.Identifier(t)
+
+	teardown := func() {
+		base.Cmd("rmi", imageName).Run()
+	}
+	t.Cleanup(teardown)
+	teardown()
+
+	dockerfile := fmt.Sprintf(`FROM %s
+	CMD ["echo", "test-nerdctl-run-from-oci-archive"]`, testutil.CommonImage)
+
+	buildCtx := helpers.CreateBuildContext(t, dockerfile)
+	tarPath := fmt.Sprintf("%s/%s.tar", buildCtx, imageName)
+
+	base.Cmd("build", buildCtx, "--tag", imageName, fmt.Sprintf("--output=oci,dest=%s", tarPath)).AssertOK()
+	base.Cmd("run", "-it", "--rm", fmt.Sprintf("oci-archive://%s", tarPath)).AssertOutContains("test-nerdctl-run-from-oci-archive")
+}
