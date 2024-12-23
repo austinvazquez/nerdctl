@@ -453,6 +453,14 @@ func generateBuildctlArgs(ctx context.Context, client *containerd.Client, option
 		}
 	}
 
+	if len(options.ExtraHosts) > 0 {
+		hosts, err := parseExtraHosts(options.ExtraHosts)
+		if err != nil {
+			return "", nil, false, "", nil, nil, err
+		}
+		buildctlArgs = append(buildctlArgs, "--opt=add-hosts="+strings.Join(hosts, ","))
+	}
+
 	return buildctlBinary, buildctlArgs, needsLoading, metaFile, tags, cleanup, nil
 }
 
@@ -604,4 +612,19 @@ func readOCIIndexFromPath(path string) (*ocispec.Index, error) {
 		return nil, err
 	}
 	return ociIndex, nil
+}
+
+func parseExtraHosts(extraHosts []string) ([]string, error) {
+	hosts := make([]string, 0, len(extraHosts))
+	for _, hostIPMapping := range extraHosts {
+		host, ip, ok := strings.Cut(hostIPMapping, ":")
+		if !ok {
+			host, ip, ok = strings.Cut(hostIPMapping, "=")
+		}
+		if !ok || host == "" || ip == "" {
+			return nil, fmt.Errorf("invalid host %s", hostIPMapping)
+		}
+		hosts = append(hosts, host+"="+ip)
+	}
+	return hosts, nil
 }
