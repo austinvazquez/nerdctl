@@ -17,6 +17,8 @@
 package image
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/containerd/nerdctl/v2/cmd/nerdctl/completion"
@@ -95,7 +97,13 @@ func imageInspectAction(cmd *cobra.Command, args []string) error {
 	}
 	defer cancel()
 
-	return image.Inspect(ctx, client, args, options)
+	err = image.Inspect(ctx, client, args, options)
+	if uw, ok := err.(interface{ Unwrap() []error }); ok {
+		errs := uw.Unwrap()
+		err = fmt.Errorf("%d errors: %v", len(errs), errs)
+	}
+
+	return err
 }
 
 func imageInspectShellComplete(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

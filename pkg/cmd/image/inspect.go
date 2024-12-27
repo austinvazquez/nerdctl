@@ -18,6 +18,7 @@ package image
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -97,6 +98,7 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 	defer cancel()
 
 	// Will hold the final answers
+	var errs []error
 	var entries []interface{}
 
 	snapshotter := containerdutil.SnapshotService(client, options.GOptions.Snapshotter)
@@ -104,7 +106,7 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 	for _, identifier := range identifiers {
 		candidateImageList, requestedName, requestedTag, err := inspectIdentifier(ctx, client, identifier)
 		if err != nil {
-			log.G(ctx).WithError(err).WithField("identifier", identifier).Error("failure calling inspect")
+			errs = append(errs, fmt.Errorf("invalid reference format '%s'", identifier))
 			continue
 		}
 
@@ -185,6 +187,8 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 			// Store our image
 			// foundImages[validatedDigest] = validatedImage
 			entries = append(entries, validatedImage)
+		} else {
+			errs = append(errs, fmt.Errorf("no such image '%s'", identifier))
 		}
 	}
 
@@ -195,5 +199,5 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
