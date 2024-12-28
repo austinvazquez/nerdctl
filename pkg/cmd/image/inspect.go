@@ -105,7 +105,7 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 	for _, identifier := range identifiers {
 		candidateImageList, requestedName, requestedTag, err := inspectIdentifier(ctx, client, identifier)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("invalid reference format '%s'", identifier))
+			errs = append(errs, fmt.Sprintf("invalid reference format: %s", identifier))
 			continue
 		}
 
@@ -187,7 +187,7 @@ func Inspect(ctx context.Context, client *containerd.Client, identifiers []strin
 			// foundImages[validatedDigest] = validatedImage
 			entries = append(entries, validatedImage)
 		} else {
-			errs = append(errs, fmt.Sprintf("no such image '%s'", identifier))
+			errs = append(errs, fmt.Sprintf("no such image: %s", identifier))
 		}
 	}
 

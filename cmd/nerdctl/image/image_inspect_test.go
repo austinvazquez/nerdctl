@@ -66,7 +66,10 @@ func TestImageInspectSimpleCases(t *testing.T) {
 			{
 				Description: "Error for image not found",
 				Command:     test.Command("image", "inspect", "dne:latest", "dne2:latest"),
-				Expected:    test.Expects(1, []error{errors.New("2 errors:\nno such image 'dne:latest'\nno such image 'dne2:latest'")}, nil),
+				Expected: test.Expects(1, []error{
+					errors.New("no such image: dne:latest"),
+					errors.New("no such image: dne2:latest"),
+				}, nil),
 			},
 		},
 	}
@@ -179,7 +182,7 @@ func TestImageInspectDifferentValidReferencesForTheSameImage(t *testing.T) {
 								cmd := helpers.Command("image", "inspect", id+"@sha256:"+sha)
 								cmd.Run(&test.Expected{
 									ExitCode: 1,
-									Errors:   []error{fmt.Errorf("1 errors:\nno such image '%s@sha256:%s'", id, sha)},
+									Errors:   []error{fmt.Errorf("no such image: %s@sha256:%s", id, sha)},
 								})
 							}
 						},
@@ -201,7 +204,7 @@ func TestImageInspectDifferentValidReferencesForTheSameImage(t *testing.T) {
 								cmd := helpers.Command("image", "inspect", id)
 								cmd.Run(&test.Expected{
 									ExitCode: 1,
-									Errors:   []error{fmt.Errorf("1 errors:\ninvalid reference format '%s'", id)},
+									Errors:   []error{fmt.Errorf("invalid reference format: %s", id)},
 								})
 							}
 						},
